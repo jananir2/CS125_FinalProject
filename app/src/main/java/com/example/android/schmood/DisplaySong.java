@@ -25,7 +25,6 @@ public class DisplaySong extends AppCompatActivity {
     private static final String TAG = "SongsList";
     JsonArray dataSongs;
     String query;
-    LinearLayout parent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,7 +66,8 @@ public class DisplaySong extends AppCompatActivity {
                         Log.i(TAG, res.toString());
                         dataSongs = res.get("tracks").getAsJsonObject().get("track").getAsJsonArray();
                         Log.v(TAG, dataSongs.toString());
-                        parent = findViewById(R.id.listSongs);
+                        LinearLayout parent = findViewById(R.id.listSongs);
+                        parent.removeAllViews();
                         for (JsonElement song : dataSongs) {
                             View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
 
