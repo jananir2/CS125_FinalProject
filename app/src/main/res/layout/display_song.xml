@@ -7,20 +7,13 @@
     tools:context=".DisplaySong">>
 
     <LinearLayout
-        android:id="@+id/songNameDisplay"
+        android:id="@+id/listSongs"
         android:layout_width="match_parent"
-        android:layout_height="81dp"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/songName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Song:" />
-    </LinearLayout>
+        android:layout_height="678dp"
+        android:orientation="vertical" />
 
     <Button
-        android:id="@+id/backToSearch"
+        android:id="@+id/btnBack"
         android:layout_width="103dp"
         android:layout_height="wrap_content"
         android:text="Back" />
