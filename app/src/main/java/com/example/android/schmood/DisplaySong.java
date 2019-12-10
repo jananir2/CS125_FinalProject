@@ -14,6 +14,7 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
@@ -21,10 +22,13 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import java.util.ArrayList;
+
 public class DisplaySong extends AppCompatActivity {
     private static final String TAG = "SongsList";
     JsonArray dataSongs;
-    String query;
+    ArrayList<String> metadataSongs = new ArrayList<String>();
+    String songsQuery;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,24 +44,24 @@ public class DisplaySong extends AppCompatActivity {
         });
 
 
-        query = "http://musicovery.com/api/V6/playlist.php?&fct=getfrommood"
+        songsQuery = "http://musicovery.com/api/V6/playlist.php?&fct=getfrommood"
                 + "&trackarousal="  + intent.getStringExtra("intFeel")
                 + "&trackvalence=" + intent.getStringExtra("intEnergy")
                 + "&listenercountry=us";
-        Log.i(TAG, query);
-        getSongs(query);
+        Log.i(TAG, songsQuery);
+        getSongs(songsQuery);
 
 
 //        Log.i(TAG, dataSongs.toString());
 
     }
 
-    private void getSongs(String query) {
+    private void getSongs(String songsQuery) {
         Log.i(TAG, "Gettings songs");
-        RequestQueue queue = Volley.newRequestQueue(this);
+        final RequestQueue queue = Volley.newRequestQueue(this);
 
         // Request a string response from the provided URL.
-        StringRequest stringRequest = new StringRequest(Request.Method.GET, query,
+        StringRequest basicInfoReq = new StringRequest(Request.Method.GET, songsQuery,
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
@@ -65,26 +69,61 @@ public class DisplaySong extends AppCompatActivity {
                         JsonObject res = new Gson().fromJson(response, JsonObject.class);
                         Log.i(TAG, res.toString());
                         dataSongs = res.get("tracks").getAsJsonObject().get("track").getAsJsonArray();
-                        Log.v(TAG, dataSongs.toString());
-                        LinearLayout parent = findViewById(R.id.listSongs);
-                        parent.removeAllViews();
                         for (JsonElement song : dataSongs) {
-                            View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
-
-                            TextView txtSongTitle = songChunk.findViewById(R.id.txtTitle);
-                            Log.i(TAG, "title is: " + song.getAsJsonObject().get("title").getAsString());
-                            txtSongTitle.setText(song.getAsJsonObject().get("title").getAsString());
-
-                            TextView txtArtistName = songChunk.findViewById(R.id.txtArtist);
-
-                            Log.i(TAG, "title is: " + song.getAsJsonObject().get("artist_display_name").getAsString());
-                            txtArtistName.setText(song.getAsJsonObject().get("artist_display_name").getAsString());
-
-                            parent.addView(songChunk);
-                            Log.i(TAG, "Added chonk: " + songChunk);
-                            Log.i(TAG, "Views: " + parent.getChildCount());
-                            Log.i(TAG, "Check check: " + parent.getChildAt(parent.getChildCount() - 1).findViewById(R.id.txtArtist));
+                            String artistFormatted = song.getAsJsonObject().get("artist_display_name").getAsString().replace(" ", "+");
+                            String titleFormatted = song.getAsJsonObject().get("title").getAsString().replace(" ", "+");
+                            final String metadataQuery = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=9fb556f623b6c3895a0980a1b743b66c" +
+                                    "&artist=" + artistFormatted +
+                                    "&track=" + titleFormatted +
+                                    "&format=json";
+                            Log.i(TAG, metadataQuery);
+                            StringRequest artLinksReq = new StringRequest(Request.Method.GET, metadataQuery,
+                                    new Response.Listener<String>() {
+                                        @Override
+                                        public void onResponse(String response) {
+                                            JsonObject resJson = new Gson().fromJson(response, JsonObject.class);
+                                            Log.i(TAG, resJson.toString());
+                                            if (resJson.get("error") == null) {
+                                                Log.i(TAG, resJson.get("track").getAsJsonObject().toString());
+                                                if (resJson.get("track").getAsJsonObject().get("album") == null) {
+                                                    metadataSongs.add(resJson.get("track").getAsJsonObject().get("album").getAsJsonObject()
+                                                            .get("image").getAsJsonArray().get(1).getAsJsonObject()
+                                                            .get("#text").getAsString());
+                                                }
+                                            } else {
+                                                metadataSongs.add("GENERIC_URL");
+                                            }
+                                        }
+                                    }, new Response.ErrorListener() {
+                                @Override
+                                public void onErrorResponse(VolleyError error) {
+                                    Log.i(TAG, "RUHROH");
+                                    Log.i(TAG, "Uhh so this shit goofed: " + error.toString());
+                                }
+                            });
+                            queue.add(artLinksReq);
                         }
+
+//                        Log.v(TAG, dataSongs.toString());
+//                        LinearLayout parent = findViewById(R.id.listSongs);
+//                        parent.removeAllViews();
+//                        for (JsonElement song : dataSongs) {
+//                            View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
+//
+//                            TextView txtSongTitle = songChunk.findViewById(R.id.txtTitle);
+//                            Log.i(TAG, "title is: " + song.getAsJsonObject().get("title").getAsString());
+//                            txtSongTitle.setText(song.getAsJsonObject().get("title").getAsString());
+//
+//                            TextView txtArtistName = songChunk.findViewById(R.id.txtArtist);
+//
+//                            Log.i(TAG, "title is: " + song.getAsJsonObject().get("artist_display_name").getAsString());
+//                            txtArtistName.setText(song.getAsJsonObject().get("artist_display_name").getAsString());
+//
+//                            parent.addView(songChunk);
+//                            Log.i(TAG, "Added chonk: " + songChunk);
+//                            Log.i(TAG, "Views: " + parent.getChildCount());
+//                            Log.i(TAG, "Check check: " + parent.getChildAt(parent.getChildCount() - 1).findViewById(R.id.txtArtist));
+//                        }
                     }
                 }, new Response.ErrorListener() {
             @Override
@@ -93,9 +132,11 @@ public class DisplaySong extends AppCompatActivity {
                 Log.i(TAG, "Uhh so this shit goofed: " + error.toString());
             }
         });
+        queue.add(basicInfoReq);
+
+        Log.i(TAG, metadataSongs.toString());
         Log.i(TAG, "Got here??");
 
 // Add the request to the RequestQueue.
-        queue.add(stringRequest);
     }
 }
