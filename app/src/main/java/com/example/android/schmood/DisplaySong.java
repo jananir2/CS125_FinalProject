@@ -3,10 +3,12 @@ package com.example.android.schmood;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -21,7 +23,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.squareup.picasso.Picasso;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 
 public class DisplaySong extends AppCompatActivity {
@@ -51,14 +56,75 @@ public class DisplaySong extends AppCompatActivity {
                 + "&trackvalence=" + intent.getStringExtra("intEnergy")
                 + "&listenercountry=us";
         Log.i(TAG, songsQuery);
-        getSongs(songsQuery);
+        AsyncTaskRunner runner = new AsyncTaskRunner();
+        runner.execute();
+
 
 
 //        Log.i(TAG, dataSongs.toString());
 
     }
 
-    private void getSongs(String songsQuery) {
+    private class AsyncTaskRunner extends AsyncTask<String, String, String> {
+
+        String resp;
+
+        @Override
+        protected String doInBackground(String... params) {
+            try {
+                getSongs(songsQuery);
+                Log.i(TAG, "HERE????");
+                Log.i(TAG, dataSongs.getAsString());
+            } catch (Exception e) {
+                e.printStackTrace();
+                resp = e.getMessage();
+            }
+            return resp;
+        }
+
+
+        @Override
+        protected void onPostExecute(String res) {
+            Log.i(TAG, "ASNYC SAYS: " + res);
+            LinearLayout parent = findViewById(R.id.listSongs);
+            parent.removeAllViews();
+            for (int i = 0; i < dataSongs.size(); i++) {
+                JsonElement song = dataSongs.get(i);
+                View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
+
+                TextView txtSongTitle = songChunk.findViewById(R.id.txtTitle);
+                Log.i(TAG, "title is: " + song.getAsJsonObject().get("title").getAsString());
+                txtSongTitle.setText(song.getAsJsonObject().get("title").getAsString());
+
+                TextView txtArtistName = songChunk.findViewById(R.id.txtArtist);
+
+                Log.i(TAG, "title is: " + song.getAsJsonObject().get("artist_display_name").getAsString());
+                txtArtistName.setText(song.getAsJsonObject().get("artist_display_name").getAsString());
+
+                ImageView imgAlbumArt = songChunk.findViewById(R.id.imgAlbum);
+                Picasso.get().load(metadataSongs.get(i)).into(imgAlbumArt);
+
+                parent.addView(songChunk);
+                Log.i(TAG, "Added chonk: " + songChunk);
+                Log.i(TAG, "Views: " + parent.getChildCount());
+                Log.i(TAG, "Check check: " + parent.getChildAt(parent.getChildCount() - 1).findViewById(R.id.txtArtist));
+            }
+        }
+
+
+        @Override
+        protected void onPreExecute() {
+
+        }
+
+
+        @Override
+        protected void onProgressUpdate(String... text) {
+
+        }
+    }
+
+    private JsonArray getSongs(String songsQuery) {
         Log.i(TAG, "Gettings songs");
         final RequestQueue queue = Volley.newRequestQueue(this);
 
@@ -87,14 +153,15 @@ public class DisplaySong extends AppCompatActivity {
                                             Log.i(TAG, resJson.toString());
                                             if (resJson.get("error") == null) {
                                                 Log.i(TAG, resJson.get("track").getAsJsonObject().toString());
-                                                if (resJson.get("track").getAsJsonObject().get("album") == null) {
+                                                if (resJson.get("track").getAsJsonObject().get("album") != null) {
                                                     metadataSongs.add(resJson.get("track").getAsJsonObject().get("album").getAsJsonObject()
                                                             .get("image").getAsJsonArray().get(1).getAsJsonObject()
                                                             .get("#text").getAsString());
                                                 }
                                             } else {
-                                                metadataSongs.add("GENERIC_URL");
+                                                metadataSongs.add("https://musicpartners.sonos.com/sites/default/files/Sonos_Default_AlbumArt.png");
                                             }
+
                                         }
                                     }, new Response.ErrorListener() {
                                 @Override
@@ -106,26 +173,8 @@ public class DisplaySong extends AppCompatActivity {
                             queue.add(artLinksReq);
                         }
 
-//                        Log.v(TAG, dataSongs.toString());
-//                        LinearLayout parent = findViewById(R.id.listSongs);
-//                        parent.removeAllViews();
-//                        for (JsonElement song : dataSongs) {
-//                            View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
-//
-//                            TextView txtSongTitle = songChunk.findViewById(R.id.txtTitle);
-//                            Log.i(TAG, "title is: " + song.getAsJsonObject().get("title").getAsString());
-//                            txtSongTitle.setText(song.getAsJsonObject().get("title").getAsString());
-//
-//                            TextView txtArtistName = songChunk.findViewById(R.id.txtArtist);
-//
-//                            Log.i(TAG, "title is: " + song.getAsJsonObject().get("artist_display_name").getAsString());
-//                            txtArtistName.setText(song.getAsJsonObject().get("artist_display_name").getAsString());
-//
-//                            parent.addView(songChunk);
-//                            Log.i(TAG, "Added chonk: " + songChunk);
-//                            Log.i(TAG, "Views: " + parent.getChildCount());
-//                            Log.i(TAG, "Check check: " + parent.getChildAt(parent.getChildCount() - 1).findViewById(R.id.txtArtist));
-//                        }
+                        Log.v(TAG, dataSongs.toString());
+
                     }
                 }, new Response.ErrorListener() {
             @Override
@@ -135,6 +184,8 @@ public class DisplaySong extends AppCompatActivity {
             }
         });
         queue.add(basicInfoReq);
+
+
 
         Log.i(TAG, metadataSongs.toString());
         Log.i(TAG, "Got here??");
