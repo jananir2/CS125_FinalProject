@@ -3,6 +3,7 @@ package com.example.android.schmood;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
@@ -55,9 +56,7 @@ public class DisplaySong extends AppCompatActivity {
                 + "&trackarousal="  + intent.getStringExtra("intFeel")
                 + "&trackvalence=" + intent.getStringExtra("intEnergy")
                 + "&listenercountry=us";
-        Log.i(TAG, songsQuery);
-        AsyncTaskRunner runner = new AsyncTaskRunner();
-        runner.execute();
+        getSongs(songsQuery);
 
 
 
@@ -65,66 +64,7 @@ public class DisplaySong extends AppCompatActivity {
 
     }
 
-    private class AsyncTaskRunner extends AsyncTask<String, String, String> {
-
-        String resp;
-
-        @Override
-        protected String doInBackground(String... params) {
-            try {
-                getSongs(songsQuery);
-                Log.i(TAG, "HERE????");
-                Log.i(TAG, dataSongs.getAsString());
-            } catch (Exception e) {
-                e.printStackTrace();
-                resp = e.getMessage();
-            }
-            return resp;
-        }
-
-
-        @Override
-        protected void onPostExecute(String res) {
-            Log.i(TAG, "ASNYC SAYS: " + res);
-            LinearLayout parent = findViewById(R.id.listSongs);
-            parent.removeAllViews();
-            for (int i = 0; i < dataSongs.size(); i++) {
-                JsonElement song = dataSongs.get(i);
-                View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
-
-                TextView txtSongTitle = songChunk.findViewById(R.id.txtTitle);
-                Log.i(TAG, "title is: " + song.getAsJsonObject().get("title").getAsString());
-                txtSongTitle.setText(song.getAsJsonObject().get("title").getAsString());
-
-                TextView txtArtistName = songChunk.findViewById(R.id.txtArtist);
-
-                Log.i(TAG, "title is: " + song.getAsJsonObject().get("artist_display_name").getAsString());
-                txtArtistName.setText(song.getAsJsonObject().get("artist_display_name").getAsString());
-
-                ImageView imgAlbumArt = songChunk.findViewById(R.id.imgAlbum);
-                Picasso.get().load(metadataSongs.get(i)).into(imgAlbumArt);
-
-                parent.addView(songChunk);
-                Log.i(TAG, "Added chonk: " + songChunk);
-                Log.i(TAG, "Views: " + parent.getChildCount());
-                Log.i(TAG, "Check check: " + parent.getChildAt(parent.getChildCount() - 1).findViewById(R.id.txtArtist));
-            }
-        }
-
-
-        @Override
-        protected void onPreExecute() {
-
-        }
-
-
-        @Override
-        protected void onProgressUpdate(String... text) {
-
-        }
-    }
-
-    private JsonArray getSongs(String songsQuery) {
+    private void getSongs(String songsQuery) {
         Log.i(TAG, "Gettings songs");
         final RequestQueue queue = Volley.newRequestQueue(this);
 
@@ -137,31 +77,82 @@ public class DisplaySong extends AppCompatActivity {
                         JsonObject res = new Gson().fromJson(response, JsonObject.class);
                         Log.i(TAG, res.toString());
                         dataSongs = res.get("tracks").getAsJsonObject().get("track").getAsJsonArray();
-                        for (JsonElement song : dataSongs) {
+                        for (int i = 0; i < dataSongs.size(); i++) {
+                            final JsonElement song = dataSongs.get(i);
                             String artistFormatted = song.getAsJsonObject().get("artist_display_name").getAsString().replace(" ", "+");
                             String titleFormatted = song.getAsJsonObject().get("title").getAsString().replace(" ", "+");
+                            final String artist = song.getAsJsonObject().get("artist_display_name").getAsString();
+                            final String title = song.getAsJsonObject().get("title").getAsString();
                             final String metadataQuery = "http://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key=9fb556f623b6c3895a0980a1b743b66c" +
                                     "&artist=" + artistFormatted +
                                     "&track=" + titleFormatted +
                                     "&format=json";
                             Log.i(TAG, metadataQuery);
+
                             StringRequest artLinksReq = new StringRequest(Request.Method.GET, metadataQuery,
                                     new Response.Listener<String>() {
                                         @Override
                                         public void onResponse(String response) {
-                                            JsonObject resJson = new Gson().fromJson(response, JsonObject.class);
+                                            final JsonObject resJson = new Gson().fromJson(response, JsonObject.class);
                                             Log.i(TAG, resJson.toString());
-                                            if (resJson.get("error") == null) {
-                                                Log.i(TAG, resJson.get("track").getAsJsonObject().toString());
-                                                if (resJson.get("track").getAsJsonObject().get("album") != null) {
-                                                    metadataSongs.add(resJson.get("track").getAsJsonObject().get("album").getAsJsonObject()
-                                                            .get("image").getAsJsonArray().get(1).getAsJsonObject()
-                                                            .get("#text").getAsString());
+
+
+                                            //ADD TO PRENT
+                                            LinearLayout parent = findViewById(R.id.listSongs);
+                                            View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
+
+                                            Button btnListen = songChunk.findViewById(R.id.btnListen);
+
+
+                                            btnListen.setOnClickListener(new View.OnClickListener() {
+                                                public void onClick(View v) {
+                                                    if (resJson.get("track") != null) {
+                                                        Intent browserIntent = new Intent(
+                                                                Intent.ACTION_VIEW,
+                                                                Uri.parse(resJson.get("track").getAsJsonObject().get("url").getAsString()));
+                                                        startActivity(browserIntent);
+                                                    } else {
+                                                        Intent browserIntent = new Intent(
+                                                                Intent.ACTION_VIEW,
+                                                                Uri.parse("https://www.last.fm"));
+                                                        startActivity(browserIntent);
+                                                    }
                                                 }
-                                            } else {
-                                                metadataSongs.add("https://musicpartners.sonos.com/sites/default/files/Sonos_Default_AlbumArt.png");
+                                            });
+
+                                            ImageView imgAlbumArt = songChunk.findViewById(R.id.imgAlbum);
+
+                                            if (resJson.get("track") != null
+                                            && resJson.get("track").getAsJsonObject().get("album") != null
+                                            && resJson.get("track").getAsJsonObject().get("album").getAsJsonObject()
+                                                    .get("image") != null
+                                            && resJson.get("track").getAsJsonObject().get("album").getAsJsonObject()
+                                                    .get("image").getAsJsonArray().get(2) != null
+                                            && !(resJson.get("track").getAsJsonObject().get("album").getAsJsonObject()
+                                                    .get("image").getAsJsonArray().get(2).getAsJsonObject().get("#text").getAsString().equals(""))) {
+                                                Log.i(TAG, "IMAGE LINK: " +
+                                                        resJson.get("track").getAsJsonObject()
+                                                        .get("album").getAsJsonObject()
+                                                        .get("image").getAsJsonArray().get(2).getAsJsonObject().get("#text").getAsString());
+                                                String imgLink = resJson.get("track").getAsJsonObject()
+                                                        .get("album").getAsJsonObject()
+                                                        .get("image").getAsJsonArray().get(2).getAsJsonObject().get("#text").getAsString();
+                                                Picasso.get().load(imgLink).into(imgAlbumArt);
                                             }
 
+
+                                            TextView txtSongTitle = songChunk.findViewById(R.id.txtTitle);
+                                            Log.i(TAG, "title is: " + title);
+                                            txtSongTitle.setText(title);
+
+                                            TextView txtArtistName = songChunk.findViewById(R.id.txtArtist);
+
+                                            Log.i(TAG, "artist is: " + artist);
+                                            txtArtistName.setText(artist);
+
+//                                                    Picasso.get().load(imgLink).into(imgAlbumArt);
+
+                                            parent.addView(songChunk);
                                         }
                                     }, new Response.ErrorListener() {
                                 @Override
@@ -171,6 +162,25 @@ public class DisplaySong extends AppCompatActivity {
                                 }
                             });
                             queue.add(artLinksReq);
+//                            LinearLayout parent = findViewById(R.id.listSongs);
+//                            parent.removeAllViews();
+//                            for (int i = 0; i < dataSongs.size(); i++) {
+//                                View songChunk = getLayoutInflater().inflate(R.layout.chunk_info, parent, false);
+//
+//                                TextView txtSongTitle = songChunk.findViewById(R.id.txtTitle);
+//                                Log.i(TAG, "title is: " + song.getAsJsonObject().get("title").getAsString());
+//                                txtSongTitle.setText(song.getAsJsonObject().get("title").getAsString());
+//
+//                                TextView txtArtistName = songChunk.findViewById(R.id.txtArtist);
+//
+//                                Log.i(TAG, "title is: " + song.getAsJsonObject().get("artist_display_name").getAsString());
+//                                txtArtistName.setText(song.getAsJsonObject().get("artist_display_name").getAsString());
+//
+//                                ImageView imgAlbumArt = songChunk.findViewById(R.id.imgAlbum);
+//                                Picasso.get().load(metadataSongs.get(i)).into(imgAlbumArt);
+//
+//                                parent.addView(songChunk);
+//                            }
                         }
 
                         Log.v(TAG, dataSongs.toString());
