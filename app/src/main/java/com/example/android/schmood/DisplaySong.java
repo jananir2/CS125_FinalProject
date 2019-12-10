@@ -24,7 +24,7 @@ import com.google.gson.JsonObject;
 public class DisplaySong extends AppCompatActivity {
     private static final String TAG = "SongsList";
     JsonArray dataSongs;
-    String query;
+    String query1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,12 +40,12 @@ public class DisplaySong extends AppCompatActivity {
         });
 
 
-        query = "http://musicovery.com/api/V6/playlist.php?&fct=getfrommood"
+        query1 = "http://musicovery.com/api/V6/playlist.php?&fct=getfrommood"
                 + "&trackarousal="  + intent.getStringExtra("intFeel")
                 + "&trackvalence=" + intent.getStringExtra("intEnergy")
                 + "&listenercountry=us";
-        Log.i(TAG, query);
-        getSongs(query);
+        Log.i(TAG, query1);
+        getSongs(query1);
 
 
 //        Log.i(TAG, dataSongs.toString());
